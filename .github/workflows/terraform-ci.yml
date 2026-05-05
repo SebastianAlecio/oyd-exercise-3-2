@@ -1,0 +1,99 @@
+name: terraform-ci
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build Lambda zip
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Build deployment zip
+        run: |
+          cd app/
+          zip function.zip index.js
+
+      - name: Upload zip artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: function-zip
+          path: app/function.zip
+          retention-days: 1
+
+  terraform:
+    name: Terraform plan
+    runs-on: ubuntu-latest
+    needs: build
+    permissions:
+      contents: read
+      pull-requests: write
+    defaults:
+      run:
+        working-directory: infra
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download zip artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: function-zip
+          path: app/
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.5
+          terraform_wrapper: false
+
+      - name: Terraform fmt
+        run: terraform fmt -check -recursive
+        working-directory: .
+
+      - name: Terraform init
+        run: terraform init -backend=false
+
+      - name: Terraform validate
+        run: terraform validate
+
+      - name: Terraform plan
+        id: plan
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: us-east-1
+        run: |
+          set +e
+          terraform plan -var-file=envs/dev/dev.tfvars -no-color -input=false > plan.txt 2>&1
+          status=$?
+          echo "exitcode=$status" >> "$GITHUB_OUTPUT"
+          cat plan.txt
+          exit $status
+
+      - name: Comment plan on PR
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('infra/plan.txt', 'utf8');
+            const truncated = plan.length > 60000
+              ? plan.slice(0, 60000) + '\n\n... output truncated ...'
+              : plan;
+            const body = `### Terraform Plan\n\n<details><summary>Show plan output</summary>\n\n\`\`\`\n${truncated}\n\`\`\`\n\n</details>`;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body,
+            });
