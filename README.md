@@ -1,19 +1,19 @@
 # oyd-exercise-3-2 — Lambda Currency Converter
 
-Reusable Terraform module that provisions an AWS Lambda function (Node.js 22, arm64) behind an API Gateway HTTP API. Exposes `GET /rates` and `POST /convert`.
+Módulo Terraform reutilizable que provisiona una función AWS Lambda (Node.js 22, arm64) detrás de un API Gateway HTTP API. Expone `GET /rates` y `POST /convert`.
 
-## Layout
+## Estructura
 
 ```
-app/                       # Lambda handler (function.zip is built locally; gitignored)
+app/                       # Handler de Lambda (function.zip se construye localmente; está en .gitignore)
 infra/
-  modules/compute_lambda/  # reusable module: 9 resources
-  envs/dev/dev.tfvars      # dev environment values
-  evidence/function.txt    # captured after terraform apply
-.github/workflows/         # PR pipeline: build zip + terraform plan
+  modules/compute_lambda/  # Módulo reutilizable: 9 recursos
+  envs/dev/dev.tfvars      # Valores del entorno dev
+  evidence/function.txt    # Capturado después de terraform apply
+.github/workflows/         # Pipeline de PR: build del zip + terraform plan
 ```
 
-## Deploy
+## Despliegue
 
 ```bash
 cd app/ && zip function.zip index.js && cd ..
@@ -22,9 +22,9 @@ terraform init
 terraform apply -var-file=envs/dev/dev.tfvars
 ```
 
-Once applied, retrieve the invoke URL with `terraform output -raw invoke_url`.
+Una vez aplicado, obtén la URL de invocación con `terraform output -raw invoke_url`.
 
-## Test
+## Pruebas
 
 ```bash
 INVOKE_URL=$(cd infra && terraform output -raw invoke_url)
@@ -34,7 +34,7 @@ curl -X POST ${INVOKE_URL}convert \
   -d '{"from":"USD","to":"GTQ","amount":100}'
 ```
 
-## Tear down
+## Limpieza
 
 ```bash
 cd infra/
@@ -43,16 +43,16 @@ terraform destroy -var-file=envs/dev/dev.tfvars
 
 ## CI
 
-`.github/workflows/terraform-ci.yml` runs on every PR to `main`:
+`.github/workflows/terraform-ci.yml` se ejecuta en cada PR hacia `main`:
 
-1. **build** — installs Node 22, builds `app/function.zip`, uploads it as an artifact.
-2. **terraform** (needs `build`) — downloads the zip, then runs `fmt -check`, `init -backend=false`, `validate`, and `plan -var-file=envs/dev/dev.tfvars`. The plan output is posted back to the PR as a collapsible comment.
+1. **build** — instala Node 22, construye `app/function.zip` y lo sube como artifact.
+2. **terraform** (necesita `build`) — descarga el zip y luego corre `fmt -check`, `init -backend=false`, `validate` y `plan -var-file=envs/dev/dev.tfvars`. La salida del plan se publica como comentario colapsable en el PR.
 
-AWS credentials come exclusively from the `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` repository secrets.
+Las credenciales de AWS provienen exclusivamente de los secrets `AWS_ACCESS_KEY_ID` y `AWS_SECRET_ACCESS_KEY` del repositorio.
 
 ## Evidence
 
-`infra/evidence/function.txt` (output of `aws lambda get-function`):
+`infra/evidence/function.txt` (salida de `aws lambda get-function`):
 
 ```json
 {
@@ -64,7 +64,7 @@ AWS credentials come exclusively from the `AWS_ACCESS_KEY_ID` and `AWS_SECRET_AC
 }
 ```
 
-### Endpoint responses
+### Respuestas de los endpoints
 
 ```text
 $ curl https://e2qqw5y8yf.execute-api.us-east-1.amazonaws.com/rates
@@ -76,4 +76,4 @@ $ curl -X POST https://e2qqw5y8yf.execute-api.us-east-1.amazonaws.com/convert \
 {"from":"USD","to":"GTQ","amount":100,"result":778}
 ```
 
-> The API Gateway URL above belonged to the dev stack used to capture this evidence. Resources have been destroyed; re-running `terraform apply` will produce a fresh URL.
+> La URL del API Gateway de arriba pertenecía al stack de dev usado para capturar esta evidencia. Los recursos ya fueron destruidos; volver a correr `terraform apply` generará una URL nueva.
