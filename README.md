@@ -77,3 +77,19 @@ $ curl -X POST https://e2qqw5y8yf.execute-api.us-east-1.amazonaws.com/convert \
 ```
 
 > La URL del API Gateway de arriba pertenecía al stack de dev usado para capturar esta evidencia. Los recursos ya fueron destruidos; volver a correr `terraform apply` generará una URL nueva.
+
+## CI Verification
+
+El pipeline fue validado abriendo un PR contra `main`:
+
+- **Pull request:** [#1 — ci: verify pipeline run](https://github.com/SebastianAlecio/oyd-exercise-3-2/pull/1)
+- **Workflow run:** [Actions run #25404496956](https://github.com/SebastianAlecio/oyd-exercise-3-2/actions/runs/25404496956) — `conclusion: success`
+
+Los dos jobs pasaron:
+
+| Job | Resultado | Duración |
+| --- | --- | --- |
+| `build` (Build Lambda zip) | ✅ success | 5s |
+| `terraform` (Terraform plan, `needs: build`) | ✅ success | 19s |
+
+El job `terraform` ejecutó en orden: `download-artifact` → `terraform fmt -check -recursive` → `terraform init -backend=false` → `terraform validate` → `terraform plan -var-file=envs/dev/dev.tfvars` → `actions/github-script` posteando el plan como comentario colapsable en el PR. El [comentario `<details>` con el plan completo](https://github.com/SebastianAlecio/oyd-exercise-3-2/pull/1#issuecomment-4383450744) muestra los 9 recursos a crear.
