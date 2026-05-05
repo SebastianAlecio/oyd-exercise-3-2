@@ -77,3 +77,7 @@ $ curl -X POST https://e2qqw5y8yf.execute-api.us-east-1.amazonaws.com/convert \
 ```
 
 > La URL del API Gateway de arriba pertenecía al stack de dev usado para capturar esta evidencia. Los recursos ya fueron destruidos; volver a correr `terraform apply` generará una URL nueva.
+
+## CI Verification
+
+Pendiente — actualizar con el enlace al PR y al workflow run una vez ejecutado.
